@@ -13,7 +13,7 @@ class AutoCompleteFilter extends React.Component {
     this.filterValueOnInput = this.filterValueOnInput.bind(this);
     this.filterValues = this.filterValues.bind(this);
     this.handleInputChange = this.handleInputChange.bind(this);
-    this.state = { options: this.getOptions(), rawValue: '', placeholder: 'Runng' };
+    this.state = { options: this.getOptions(), rawValue: '', placeholder: 'Search' };
   }
 
   componentWillReceiveProps(newProps) {
