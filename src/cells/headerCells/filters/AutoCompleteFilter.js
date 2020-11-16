@@ -2,24 +2,26 @@ import 'react-select/dist/react-select.css';
 import React from 'react';
 import PropTypes from 'prop-types';
 import Select from 'react-select';
-import {isEmptyArray} from 'common/utils';
-import ExcelColumn from 'common/prop-shapes/ExcelColumn';
+import { isEmptyArray } from 'common/utils';
+import Column from 'common/prop-shapes/Column';
 
 class AutoCompleteFilter extends React.Component {
   constructor(props) {
     super(props);
     this.getOptions = this.getOptions.bind(this);
     this.handleChange = this.handleChange.bind(this);
+    this.filterValueOnInput = this.filterValueOnInput.bind(this);
     this.filterValues = this.filterValues.bind(this);
-    this.state = {options: this.getOptions(), rawValue: '', placeholder: 'Search'};
+    this.handleInputChange = this.handleInputChange.bind(this);
+    this.state = { options: this.getOptions(), rawValue: '', placeholder: 'Runng' };
   }
 
   componentWillReceiveProps(newProps) {
-    this.setState({options: this.getOptions(newProps)});
+    this.setState({ options: this.getOptions(newProps) });
   }
 
   getOptions(newProps) {
-    let props = newProps || this.props;
+    const props = newProps || this.props;
     let options = props.getValidFilterValues(props.column.key);
     options = options.map(o => {
       if (typeof o === 'string') {
@@ -30,37 +32,51 @@ class AutoCompleteFilter extends React.Component {
     return options;
   }
 
-  columnValueContainsSearchTerms(columnValue, filterTermValue) {
+  columnValueContainsSearchTerms(columnValue, filterTermValue, caller) {
     if (columnValue !== undefined && filterTermValue !== undefined) {
-      let strColumnValue = columnValue.toString();
-      let strFilterTermValue = filterTermValue.toString();
-      let checkValueIndex = strColumnValue.trim().toLowerCase().indexOf(strFilterTermValue.trim().toLowerCase());
-      return checkValueIndex !== -1 && (checkValueIndex !== 0 || strColumnValue === strFilterTermValue);
+      const strColumnValue = columnValue.toString();
+      const strFilterTermValue = filterTermValue.toString();
+      const checkValueIndex = strColumnValue.trim().toLowerCase().indexOf(strFilterTermValue.trim().toLowerCase());
+      return checkValueIndex !== -1 && caller === "onchange" ? (checkValueIndex !== 0 || strColumnValue === strFilterTermValue) : (checkValueIndex === 0);
     }
     return false;
   }
 
-  filterValues(row, columnFilter, columnKey) {
+  filterValues(row, columnFilter, columnKey, caller = "onchange") {
     let include = true;
     if (columnFilter === null) {
       include = false;
     } else if (columnFilter.filterTerm && !isEmptyArray(columnFilter.filterTerm)) {
       if (columnFilter.filterTerm.length) {
         include = columnFilter.filterTerm.some(filterTerm => {
-          return this.columnValueContainsSearchTerms(row[columnKey], filterTerm.value) === true;
+          return this.columnValueContainsSearchTerms(row[columnKey], filterTerm.value, caller) === true;
         });
       } else {
-        include = this.columnValueContainsSearchTerms(row[columnKey], columnFilter.filterTerm.value);
+        include = this.columnValueContainsSearchTerms(row[columnKey], columnFilter.filterTerm.value, caller);
       }
     }
     return include;
   }
 
-  handleChange(value) {
-    let filters = value;
-    this.setState({filters});
-    this.props.onChange({filterTerm: filters, column: this.props.column, rawValue: value, filterValues: this.filterValues });
+  filterValueOnInput(row, columnFilter, columnKey){
+
+    return this.filterValues(row, columnFilter, columnKey, "input");
   }
+
+
+
+  handleChange(value) {
+    const filters = value;
+    this.setState({ filters });
+    this.props.onChange({ filterTerm: filters, column: this.props.column, rawValue: value, filterValues: this.filterValues });
+  }
+
+  handleInputChange(value){
+    if(value.length == 0 || !this.props.custom) return
+    const filters = [{value, label: value}];
+    this.props.onChange({ filterTerm: filters, column: this.props.column, rawValue: value, filterValues: this.filterValueOnInput });
+  }
+
 
   render() {
     return (
@@ -71,6 +87,7 @@ class AutoCompleteFilter extends React.Component {
         placeholder={this.state.placeholder}
         onChange={this.handleChange}
         escapeClearsValue={true}
+        onInputChange={this.props.custom ? this.handleInputChange : undefined}
         multi={this.props.multiSelection !== undefined && this.props.multiSelection !== null ? this.props.multiSelection : true}
         value={this.state.filters} />
     );
@@ -79,7 +96,7 @@ class AutoCompleteFilter extends React.Component {
 
 AutoCompleteFilter.propTypes = {
   onChange: PropTypes.func.isRequired,
-  column: PropTypes.shape(ExcelColumn),
+  column: PropTypes.shape(Column),
   getValidFilterValues: PropTypes.func,
   multiSelection: PropTypes.bool
 };
